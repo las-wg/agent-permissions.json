@@ -2,7 +2,7 @@
 
 A robots.txt-inspired standard for how agents may interact with webpages. Made with ❤️ by the [Lightweight Agent Standards Working Group](https://las-wg.org/).
 
-Interested in contributing? Join our [Discord](https://discord.gg/wmRSNHsRAh)!
+Note: This standard is still WIP! If you're interested in contributing, join our [Discord](https://discord.gg/wmRSNHsRAh)!
 
 ## Introduction
 
