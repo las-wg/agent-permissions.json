@@ -1,5 +1,9 @@
 # agent-permissions.json
 
+A robots.txt-inspired standard for how agents may interact with webpages. Made with ❤️ by the [Lightweight Agent Standards Working Group](https://las-wg.org/).
+
+Interested in contributing? Join our [Discord](https://discord.gg/wmRSNHsRAh)!
+
 ## Introduction
 
 Websites need a machine-readable, non-binding way to declare how automated agents (bots, crawlers, assistants) may interact with them. This JSON-only Agent Permissions File lets sites express fine-grained resource-level rules and higher-level action guidelines in a single, versioned document.
