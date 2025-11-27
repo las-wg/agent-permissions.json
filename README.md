@@ -4,84 +4,107 @@ A robots.txt-inspired standard for how agents may interact with webpages. Made w
 
 Note: This standard is still WIP! If you're interested in contributing, join our [Discord](https://discord.gg/wmRSNHsRAh)!
 
-## Introduction
-
-Websites need a machine-readable, non-binding way to declare how automated agents (bots, crawlers, assistants) may interact with them. This JSON-only Agent Permissions File lets sites express fine-grained resource-level rules and higher-level action guidelines in a single, versioned document.
-
-> **Note:** This document does not cover agent-to-agent interactions or content usage policies (see IETF AIPref instead).
-
 ---
 
-## File Discovery
+# Introduction
 
-Consumers **MAY** locate and fetch the JSON policy via a `<link>` tag, for example:
+Websites need a machine-readable, non-binding way to declare how automated agents (bots, crawlers, assistants) may interact with them. This **JSON-only Agent Permissions File** lets sites express fine-grained resource-level rules and higher-level action guidelines in a single, versioned document.
+
+This document does not cover agent-to-agent interactions or content usage policies (see [IETF AIPref](https://datatracker.ietf.org/wg/aipref/about/) instead).
+
+The key words **“MUST”**, **“MUST NOT”**, **“SHOULD”**, and **“SHOULD NOT”** are to be interpreted as described in RFC 2119.
+
+This file is advisory and non-binding: agents MAY choose stricter behaviors than those granted here, but MUST NOT exceed the permissions granted if they claim to honor this format.
+
+# File Discovery
+
+Consumers **MAY** locate and fetch the JSON policy via a link tag, e.g.:
 
 ```html
-<link rel="agent-permissions"
-      href="https://example.com/.well-known/agent-permissions.json">
+<link rel="agent-permissions" href="https://example.com/path/to/agent-permissions.json">
 ```
 
----
+In case of no `<link>` tag, the default path is `/.well-known/agent-permissions.json`. Servers **SHOULD** serve this file with `Content-Type: application/json`.
 
-## Rationale
+# Rationale
 
 There are two forms of permissions:
 
-1. **Resource permissions:**
-   How you can interact with HTML elements (clicking, following links, filling forms…).
+* **Resource permissions**: how you can interact with HTML elements (clicking, following links, filling forms, controlling media, uploading files…).
+* **Action permissions**: what you can do on the web page (sending DMs, booking a flight, posting content…).
 
-2. **Action permissions:**
-   What you can do on the web page (sending DMs, booking a flight…).
+The former are described using `resource_rules`, which is a list containing, for each element:
 
-On top of them, we also provide **manifest metadata** and **API indicators**.
+* A `verb` (e.g., `"click_element"` or `"follow_link"`)
+* A CSS or XPath-style `selector` that restricts what the rule applies to
+* Whether the action is `allowed` or forbidden
+* (Optionally) `modifiers`, e.g. a limit on how many actions can be performed at the same time or whether it requires explicit user consent
 
-### Manifest Metadata
+The latter are described using `action_guidelines`, which is a list containing, for each element:
 
-Basic metadata for the manifest, specifically:
-* `author`
-* `schema_version`
-* `last_updated`
+* An RFC-2119 style `directive` (`"MUST"`, `"MUST NOT"`, `"SHOULD"`, `"SHOULD NOT"`)
+* A natural language `description` of the action (e.g. “Book a flight”)
+* A natural language description of `exceptions`
 
-### Resource Permissions (`resource_rules`)
+Implementation-wise, agents can follow `resource_rules` at the interface level (e.g. if the agent is using a headless browser to perform an action, the code connecting the agent to the browser can act as an enforcement layer), while `action_guidelines` are provided as prompt or configuration to the agent.
 
-A list of rules, each specifying:
+Some higher-level behaviors (for example, “fill this form”) are expected to be **composite** operations built from primitive verbs (e.g. multiple `set_input_value` calls followed by `submit_form`).
 
-* `verb`:
-  One of the standard interaction types (`read_content`, `follow_link`, `click_element`, `fill_form`, `submit_form`, `execute_script`) or a custom verb.
-* `selector`:
-  A CSS or XPath-style selector that restricts what the rule applies to.
-* `allowed`:
-  `true` to permit; `false` to forbid.
-* `modifiers` (optional):
-  Additional constraints, such as:
+Finally, the field `api` provides information on what actions can be performed by calling HTTP APIs (e.g. REST) instead of interacting with the website, as the former is often more efficient and reliable than the latter.
 
-  * `burst`: max concurrent actions
-  * `rate_limit`: `{ max_requests, window_seconds }`
-  * `time_window`: e.g. `"08:00–20:00 UTC"`
-  * `human_in_the_loop`: requires explicit human confirmation
+# Verbs
 
-### Action Permissions (`action_guidelines`)
+The `verb` in each `resource_rules` entry MUST be one of the following values. Future versions MAY extend this list; unknown verbs MUST be treated as disallowed.
 
-A list of higher-level directives, each including:
+* **`all`**
+  Wildcard for all verbs.
 
-* `directive`: (RFC-2119 style)
-  One of `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`.
-* `description`:
-  A human-readable explanation of the action.
-* `exceptions` (optional):
-  Natural-language description of any exceptions.
+* **`read_content`**
+  Read the human-visible content of elements on the page (main body text, headings, labels, etc.).
 
-### API Indicators
+* **`read_metadata`**
+  Read non-body metadata associated with the page (e.g. `<title>`, meta tags, structured data, OpenGraph, JSON-LD).
 
-When the webpage offers a service that can also be accessed through API, it is possible to specify links to documentation for the corresponding API. Each item in the list includes:
-* `endpoint`: URL to the endpoint
-* `description`: A description of the endpoint in the context of the webpage
-* `type`: Type of documentation (only OpenAPI supported by default)
-* `docs`: Link to the documentation
+* **`follow_link`**
+  Navigate by activating a link element (e.g. `<a>`), causing a page load or navigation.
 
----
+* **`click_element`**
+  Synthesize a user click on the target element (buttons, links, controls, etc.), triggering any associated handlers.
 
-## JSON Schema
+* **`scroll_page`**
+  Scroll the page viewport (or scrollable container) by a specified amount or direction.
+
+* **`set_input_value`**
+  Set the value or state of an input control. For text/number fields, sets the text/value; for checkboxes, sets checked/unchecked; for radio buttons, selects this option; for selects/dropdowns, chooses the specified option(s).
+
+* **`submit_form`**
+  Submit a form associated with the target element (e.g. the nearest enclosing `<form>`), triggering normal browser form submission behavior.
+
+* **`execute_script`**
+  Execute a script in the page context (e.g. JavaScript), subject to any additional sandboxing or policy constraints.
+
+* **`play_media`**
+  Start or resume playback of a media element (audio or video).
+
+* **`pause_media`**
+  Pause playback of a media element without resetting its position.
+
+* **`mute_media`**
+  Mute the audio of a media element.
+
+* **`unmute_media`**
+  Unmute the audio of a media element.
+
+* **`upload_file`**
+  Attach or provide a file to an upload-capable control (e.g. `<input type="file">`) or equivalent UI.
+
+* **`download_file`**
+  Initiate a file download via the target element (e.g. clicking a download link or button).
+
+* **`copy_to_clipboard`**
+  Copy specified text or content from the page to the agent’s clipboard abstraction.
+
+# JSON Schema
 
 ```json
 {
@@ -108,14 +131,8 @@ When the webpage offers a service that can also be accessed through API, it is p
           "type": "string",
           "description": "Optional human-readable identifier for the publisher"
         }
-      }
-    },
-    "custom_verbs": {
-      "description": "Optional description of non-standard verbs for resource_rules",
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
+      },
+      "additionalProperties": false
     },
     "resource_rules": {
       "type": "array",
@@ -127,18 +144,28 @@ When the webpage offers a service that can also be accessed through API, it is p
           "verb": {
             "type": "string",
             "enum": [
+              "all",
               "read_content",
+              "read_metadata",
               "follow_link",
               "click_element",
-              "fill_form",
+              "scroll_page",
+              "set_input_value",
               "submit_form",
-              "execute_script"
+              "execute_script",
+              "play_media",
+              "pause_media",
+              "mute_media",
+              "unmute_media",
+              "upload_file",
+              "download_file",
+              "copy_to_clipboard"
             ],
-            "description": "Type of interaction. May also be one of the keys in custom_verbs"
+            "description": "Type of interaction; MUST be one of the defined verbs"
           },
           "selector": {
             "type": "object",
-            "required": ["type", "value"],
+            "required": ["type"],
             "properties": {
               "type": {
                 "type": "string",
@@ -147,8 +174,18 @@ When the webpage offers a service that can also be accessed through API, it is p
               },
               "value": {
                 "type": "string",
-                "description": "CSS selector, XPath expression, or ignored if type='all'"
+                "description": "CSS selector or XPath expression.'"
               }
+            },
+            "additionalProperties": false,
+            "if": {
+              "properties": {
+                "type": { "const": "all" }
+              },
+              "required": ["type"]
+            },
+            "else": {
+              "required": ["value"]
             }
           },
           "allowed": {
@@ -162,7 +199,7 @@ When the webpage offers a service that can also be accessed through API, it is p
               "burst": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "Max concurrent actions"
+                "description": "Max concurrent actions for the agent instance"
               },
               "rate_limit": {
                 "type": "object",
@@ -178,7 +215,8 @@ When the webpage offers a service that can also be accessed through API, it is p
                     "minimum": 1,
                     "description": "Length of the time window (in seconds)"
                   }
-                }
+                },
+                "additionalProperties": false
               },
               "time_window": {
                 "type": "string",
@@ -225,12 +263,11 @@ When the webpage offers a service that can also be accessed through API, it is p
       "description": "Endpoints that can be used as an alternative to interacting with the webpage",
       "items": {
         "type": "object",
-        "required": ["type", "endpoint", "description"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["openapi"],
-            "description": "Type of reference. Only OpenAPI is supported so far"
+            "enum": ["openapi", "mcp", "a2a"],
+            "description": "Type of reference"
           },
           "endpoint": {
             "type": "string",
@@ -244,7 +281,9 @@ When the webpage offers a service that can also be accessed through API, it is p
             "type": "string",
             "description": "Description of the endpoint in the context of the web page"
           }
-        }
+        },
+        "required": ["type", "endpoint", "description"],
+        "additionalProperties": false
       }
     }
   },
@@ -254,28 +293,32 @@ When the webpage offers a service that can also be accessed through API, it is p
 
 ---
 
-## Semantics & Enforcement
+# Semantics & Enforcement
 
-1. **Fetch & cache once.**
-   Observe any HTTP caching headers.
-2. **Parse according to the schema.**
-   On validation failure, log an error and disallow all interactions.
-3. **Apply `resource_rules`** in order of appearance.
+1. **Fetch & cache.**
+   Fetch the file and cache it, observing any HTTP caching headers.
+
+2. **Validate.**
+   Parse according to the schema; on validation failure, consumers **SHOULD** treat the file as absent and **MUST NOT** grant additional permissions based on it (i.e., disallow all interactions beyond their default safety policies).
+
+3. **Apply `resource_rules`.**
+   Apply `resource_rules` in order of appearance in the array. Later rules MAY override earlier ones for the same `(verb, selector)` combination, depending on implementation policy.
+
 4. **Honor modifiers.**
-5. **Log `action_guidelines` violations:**
+   Enforce `modifiers` such as `burst`, `rate_limit`, `time_window`, and `human_in_the_loop` when deciding whether to execute an action.
+
+5. **Interpret `action_guidelines`.**
+   Log or otherwise surface violations of `action_guidelines`:
 
    * `MUST NOT` → error log
    * `SHOULD NOT` → warning
    * `SHOULD` → info
 
-> **Implementation notes:**
->
-> * Resource rules are enforced at the browser interface level (e.g., blocking unintended interactions).
-> * Action guidelines are enforced at the agent level (e.g., fed to the LLM as prompts).
+We expect the implementation of `resource_rules` to happen at the browser interface level (e.g. the agent is blocked from performing unintended interactions) and the implementation of `action_guidelines` to happen at the agent level (e.g. by feeding these rules to the LLM or equivalent decision component).
 
 ---
 
-## Example
+# Example
 
 ```json
 {
@@ -287,7 +330,7 @@ When the webpage offers a service that can also be accessed through API, it is p
   "resource_rules": [
     {
       "verb": "read_content",
-      "selector": { "type": "all", "value": "" },
+      "selector": { "type": "all" },
       "allowed": true
     },
     {
@@ -303,6 +346,19 @@ When the webpage offers a service that can also be accessed through API, it is p
         "burst": 5,
         "time_window": "08:00–20:00 UTC"
       }
+    },
+    {
+      "verb": "set_input_value",
+      "selector": { "type": "css", "value": "form#checkout input[name='email']" },
+      "allowed": true,
+      "modifiers": {
+        "human_in_the_loop": true
+      }
+    },
+    {
+      "verb": "play_media",
+      "selector": { "type": "css", "value": "video.hero" },
+      "allowed": false
     }
   ],
   "action_guidelines": [
@@ -314,14 +370,6 @@ When the webpage offers a service that can also be accessed through API, it is p
     {
       "directive": "SHOULD",
       "description": "Add \"_bot\" to the username when registering an account."
-    }
-  ],
-  "api": [
-    {
-      "type": "openapi",
-      "endpoint": "https://api.example.com/v1/send-message",
-      "docs": "https://docs.example.com/v1/send-message",
-      "description": "Sends a message to the user. Equivalent to using the DM feature."
     }
   ]
 }
