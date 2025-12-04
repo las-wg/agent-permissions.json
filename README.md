@@ -36,7 +36,7 @@ There are two forms of permissions:
 The former are described using `resource_rules`, which is a list containing, for each element:
 
 * A `verb` (e.g., `"click_element"` or `"follow_link"`)
-* A CSS or XPath-style `selector` that restricts what the rule applies to
+* A CSS selector that restricts what the rule applies to
 * Whether the action is `allowed` or forbidden
 * (Optionally) `modifiers`, e.g. a limit on how many actions can be performed at the same time or whether it requires explicit user consent
 
@@ -164,29 +164,8 @@ The `verb` in each `resource_rules` entry MUST be one of the following values. F
             "description": "Type of interaction; MUST be one of the defined verbs"
           },
           "selector": {
-            "type": "object",
-            "required": ["type"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": ["css", "xpath", "all"],
-                "description": "'all' equals '*' wildcard"
-              },
-              "value": {
-                "type": "string",
-                "description": "CSS selector or XPath expression.'"
-              }
-            },
-            "additionalProperties": false,
-            "if": {
-              "properties": {
-                "type": { "const": "all" }
-              },
-              "required": ["type"]
-            },
-            "else": {
-              "required": ["value"]
-            }
+            "type": "string",
+            "description": "CSS selector for the rule."
           },
           "allowed": {
             "type": "boolean",
@@ -302,7 +281,9 @@ The `verb` in each `resource_rules` entry MUST be one of the following values. F
    Parse according to the schema; on validation failure, consumers **SHOULD** treat the file as absent and **MUST NOT** grant additional permissions based on it (i.e., disallow all interactions beyond their default safety policies).
 
 3. **Apply `resource_rules`.**
-   Apply `resource_rules` in order of appearance in the array. Later rules MAY override earlier ones for the same `(verb, selector)` combination, depending on implementation policy.
+   Apply `resource_rules` following priority rules:
+   1. Specific verbs have higher priority over `all`
+   2. For the same verb, follow CSS priority rules
 
 4. **Honor modifiers.**
    Enforce `modifiers` such as `burst`, `rate_limit`, `time_window`, and `human_in_the_loop` when deciding whether to execute an action.
@@ -330,17 +311,17 @@ We expect the implementation of `resource_rules` to happen at the browser interf
   "resource_rules": [
     {
       "verb": "read_content",
-      "selector": { "type": "all" },
+      "selector": "*",
       "allowed": true
     },
     {
       "verb": "follow_link",
-      "selector": { "type": "css", "value": ".private-area" },
+      "selector": ".private-area",
       "allowed": false
     },
     {
       "verb": "click_element",
-      "selector": { "type": "xpath", "value": "//button[@id='buy']" },
+      "selector": "#buy",
       "allowed": true,
       "modifiers": {
         "burst": 5,
@@ -349,7 +330,7 @@ We expect the implementation of `resource_rules` to happen at the browser interf
     },
     {
       "verb": "set_input_value",
-      "selector": { "type": "css", "value": "form#checkout input[name='email']" },
+      "selector": "form#checkout input[name='email']",
       "allowed": true,
       "modifiers": {
         "human_in_the_loop": true
@@ -357,7 +338,7 @@ We expect the implementation of `resource_rules` to happen at the browser interf
     },
     {
       "verb": "play_media",
-      "selector": { "type": "css", "value": "video.hero" },
+      "selector": "video.hero",
       "allowed": false
     }
   ],
