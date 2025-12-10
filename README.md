@@ -200,7 +200,7 @@ The `verb` in each `resource_rules` entry MUST be one of the following values. F
               "time_window": {
                 "type": "string",
                 "pattern": "^[0-2]\\d:[0-5]\\d-[0-2]\\d:[0-5]\\d UTC$",
-                "description": "Clock-time range, e.g. '08:00–20:00 UTC'"
+                "description": "Clock-time range, e.g. '08:00-20:00 UTC'"
               },
               "human_in_the_loop": {
                 "type": "boolean",
