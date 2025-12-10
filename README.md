@@ -325,7 +325,7 @@ We expect the implementation of `resource_rules` to happen at the browser interf
       "allowed": true,
       "modifiers": {
         "burst": 5,
-        "time_window": "08:00–20:00 UTC"
+        "time_window": "08:00-20:00 UTC"
       }
     },
     {
