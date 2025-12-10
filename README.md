@@ -40,6 +40,8 @@ The former are described using `resource_rules`, which is a list containing, for
 * Whether the action is `allowed` or forbidden
 * (Optionally) `modifiers`, e.g. a limit on how many actions can be performed at the same time or whether it requires explicit user consent
 
+The top-level field `strict` prescribes the default behavior for an action that is not explicitly allowed or forbidden (`true`: defaults to forbidden, `false`: defaults to allowed).
+
 The latter are described using `action_guidelines`, which is a list containing, for each element:
 
 * An RFC-2119 style `directive` (`"MUST"`, `"MUST NOT"`, `"SHOULD"`, `"SHOULD NOT"`)
@@ -111,7 +113,7 @@ The `verb` in each `resource_rules` entry MUST be one of the following values. F
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Agent Permissions File",
   "type": "object",
-  "required": ["metadata", "resource_rules"],
+  "required": ["metadata", "strict"],
   "properties": {
     "metadata": {
       "type": "object",
@@ -133,6 +135,10 @@ The `verb` in each `resource_rules` entry MUST be one of the following values. F
         }
       },
       "additionalProperties": false
+    },
+    "strict": {
+      "type": "boolean",
+      "description": "true = default behavior is to forbid the action, false = default behavior is to allow"
     },
     "resource_rules": {
       "type": "array",
@@ -308,6 +314,7 @@ We expect the implementation of `resource_rules` to happen at the browser interf
     "last_updated": "2025-06-01T12:00:00Z",
     "author": "Example Corp"
   },
+  "strict": false,
   "resource_rules": [
     {
       "verb": "read_content",
